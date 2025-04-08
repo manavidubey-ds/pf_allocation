@@ -1,0 +1,194 @@
+
+html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto Serif', serif;
+    background-color: #ffffff;
+  }
+  
+  .login-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+  
+  /* Left side - form section */
+  .login-form-section {
+    flex: 1;
+    max-width: 450px;
+    margin: auto;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  /* Header */
+  .app-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+    color: black;
+  }
+  
+  .login-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: black;
+  }
+  #text{
+    color: black;
+  }
+  
+  /* Google login button */
+  .google-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px;
+    color: gray;
+    background: #CADDFE;
+    cursor: pointer;
+    margin-bottom: 20px;
+    font-family: 'Roboto Serif', serif;
+  }
+  
+  .google-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* OR divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: #999;
+  }
+  
+  .divider::before,
+  .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #ccc;
+    margin: 0 10px;
+  }
+  
+  /* Form styles */
+  .login-form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .login-form label {
+    margin-top: 10px;
+    font-size: 14px;
+    color: black;
+  }
+  
+  .login-form input[type="email"],
+  .login-form input[type="password"] {
+    padding: 10px;
+    margin-top: 4px;
+    background-color: #CADDFE;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'Roboto Serif', serif;
+  }
+  
+  .password-wrapper {
+    position: relative;
+    width: 100%;
+    margin-top: 4px;
+  }
+  
+  .password-wrapper input {
+    width: 100%;
+    padding: 10px 40px 10px 10px; /* right padding for the icon */
+    background-color: #CADDFE;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'Roboto Serif', serif;
+    box-sizing: border-box;
+  }
+  
+  .eye-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+  }
+  
+  
+  
+  /* Checkbox and reset password */
+  .options-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  
+  .reset-link {
+    text-decoration: none;
+    margin-top: 10px;
+    color: #2a6eea;
+  }
+  
+  /* Submit button */
+  .login-btn {
+    background-color: #5479FB;
+    color: white;
+    padding: 10px;
+    border: none;
+    margin-top: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Roboto Serif', serif;
+  }
+  
+  .login-btn:hover {
+    background-color: #5479FB;
+  }
+  
+  /* Sign up link */
+  .signup-text {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: black;
+    margin-right: 10px;
+  }
+  
+  .signup-text a {
+    color: #5479FB;
+    margin-left: 10px;
+    text-decoration: none;
+  }
+  
+  /* Right side - illustration */
+  .illustration-section {
+    flex: 1;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .illustration-section img {
+    max-width: 80%;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+  
