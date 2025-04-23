@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import List from './pages/List';
-import PortfolioDetails from './pages/PortfolioDetails'; // Import existing component
-import Modify from './pages/Modify'; // ✅ Import new Modify component
+import PortfolioDetails from './pages/PortfolioDetails';
+import Modify from './pages/Modify';
+import Portfolio from './pages/Portfolio'; // ✅ Import Portfolio component
 
 const App = () => {
   return (
@@ -14,7 +15,8 @@ const App = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/list" element={<List />} />
         <Route path="/portfolio-details" element={<PortfolioDetails />} />
-        <Route path="/modify" element={<Modify />} /> {/* ✅ New Modify Route */}
+        <Route path="/modify" element={<Modify />} />
+        <Route path="/portfolio" element={<Portfolio />} /> {/* ✅ New Portfolio Route */}
       </Routes>
     </Router>
   );

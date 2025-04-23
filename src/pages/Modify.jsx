@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import './Dashboard.css';
 import userIcon from '../assets/usericon.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Modify = () => {
+  const navigate = useNavigate();
+  const totalValue = 10000 * 1e7; // ₹10,000 Cr = 10000 * 10^7
+
+  const stockPrices = {
+    TCS: 3500,
+    HDFC: 1600,
+    INFY: 1500,
+    PVR: 1400,
+  };
+
   const navPages = [
     { name: 'Dashboard', route: '/dashboard' },
     { name: 'List', route: '/list' },
@@ -13,26 +23,63 @@ const Modify = () => {
     { name: 'Index Weights', route: '/weights' }
   ];
 
-  const portfolioWeights = [
-    { stock: 'TCS', analystWeight: 30, shares: 100, indexWeight: 18, stance: 'Auto-Calculate', notes: '.....' },
-    { stock: 'HDFC', analystWeight: 20, shares: 200, indexWeight: 15, stance: 'Auto-Calculate', notes: '.....' },
-    { stock: 'INFY', analystWeight: 25, shares: 150, indexWeight: 20, stance: 'Auto-Calculate', notes: '.....' },
-    { stock: 'PVR', analystWeight: 25, shares: 60, indexWeight: 16, stance: 'Auto-Calculate', notes: '.....' }
+  const initialData = [
+    { stock: 'TCS', analystWeight: 30, indexWeight: 18, notes: '.....' },
+    { stock: 'HDFC', analystWeight: 20, indexWeight: 15, notes: '.....' },
+    { stock: 'INFY', analystWeight: 25, indexWeight: 20, notes: '.....' },
+    { stock: 'PVR', analystWeight: 25, indexWeight: 16, notes: '.....' }
   ];
 
-  const [weights, setWeights] = useState(portfolioWeights.map(row => row.analystWeight));
+  const calculateStance = (analystWeight, indexWeight) => {
+    const aw = parseFloat(analystWeight);
+    const iw = parseFloat(indexWeight);
+    if (aw > iw) return "Overweight";
+    else if (aw < iw) return "Underweight";
+    else return "Equal Weight";
+  };
+
+  const [portfolio, setPortfolio] = useState(
+    initialData.map((item) => {
+      const shares = Math.floor((item.analystWeight / 100) * totalValue / stockPrices[item.stock]);
+      const stance = calculateStance(item.analystWeight, item.indexWeight);
+      return { ...item, shares, stance };
+    })
+  );
+
+  const [notesData, setNotesData] = useState(initialData.map(row => row.notes));
+  const [newStockName, setNewStockName] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(""); // 'invalid' or 'confirmSave'
+  const [modalType, setModalType] = useState("");
+  const [noteModal, setNoteModal] = useState({ visible: false, index: null, value: "" });
 
   const handleWeightChange = (index, value) => {
-    const updated = [...weights];
-    updated[index] = parseFloat(value);
-    setWeights(updated);
+    const newWeight = parseFloat(value);
+    if (isNaN(newWeight)) return;
+
+    const updatedPortfolio = [...portfolio];
+    updatedPortfolio[index].analystWeight = newWeight;
+    updatedPortfolio[index].shares = Math.floor((newWeight / 100) * totalValue / stockPrices[updatedPortfolio[index].stock]);
+    updatedPortfolio[index].stance = calculateStance(newWeight, updatedPortfolio[index].indexWeight);
+
+    setPortfolio(updatedPortfolio);
+  };
+
+  const handleSharesChange = (index, value) => {
+    const newShares = parseInt(value);
+    if (isNaN(newShares)) return;
+
+    const updatedPortfolio = [...portfolio];
+    updatedPortfolio[index].shares = newShares;
+    const newAW = ((newShares * stockPrices[updatedPortfolio[index].stock]) / totalValue * 100).toFixed(2);
+    updatedPortfolio[index].analystWeight = newAW;
+    updatedPortfolio[index].stance = calculateStance(newAW, updatedPortfolio[index].indexWeight);
+
+    setPortfolio(updatedPortfolio);
   };
 
   const handleDone = () => {
-    const total = weights.reduce((acc, curr) => acc + curr, 0);
-    if (total !== 100) {
+    const total = portfolio.reduce((acc, curr) => acc + parseFloat(curr.analystWeight), 0);
+    if (Math.round(total) !== 100) {
       setModalType("invalid");
       setShowModal(true);
     } else {
@@ -41,6 +88,7 @@ const Modify = () => {
   };
 
   const handleSave = () => {
+    localStorage.setItem("savedPortfolio", JSON.stringify(portfolio));
     setModalType("confirmSave");
     setShowModal(true);
   };
@@ -51,13 +99,44 @@ const Modify = () => {
   };
 
   const handleConfirmSave = () => {
+    console.log("Saving portfolio:", portfolio);
     setShowModal(false);
     alert("Changes saved! ✅");
   };
 
+  const handleAddRow = () => {
+    const newRow = {
+      stock: '',
+      analystWeight: 0,
+      indexWeight: 0,
+      notes: '.....',
+      shares: 0,
+      stance: 'Equal Weight'
+    };
+    setPortfolio([...portfolio, newRow]);
+  };
+
+  const handleAddStock = () => {
+    if (!newStockName || !stockPrices[newStockName]) {
+      alert("Please enter a valid stock name from the available list.");
+      return;
+    }
+
+    const newStock = {
+      stock: newStockName,
+      analystWeight: 0,
+      indexWeight: 0,
+      notes: '.....',
+      shares: 0,
+      stance: 'Equal Weight'
+    };
+
+    setPortfolio([...portfolio, newStock]);
+    setNewStockName('');
+  };
+
   return (
     <div className="dashboard-wrapper">
-      {/* Sidebar */}
       <aside className="sidebar">
         <h2 className="sidebar-title">PF Allocation Tool</h2>
         <nav className="sidebar-nav">
@@ -73,9 +152,7 @@ const Modify = () => {
         </nav>
       </aside>
 
-      {/* Main Dashboard */}
       <main className="dashboard-container">
-        {/* Topbar */}
         <div className="dashboard-topbar">
           <input type="text" className="dashboard-search" placeholder="Search.." />
           <div className="dashboard-user-info">
@@ -89,48 +166,73 @@ const Modify = () => {
           </div>
         </div>
 
-        {/* Page Header */}
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Modify Portfolio Weights</h1>
+          <div className="header-title-container">
+            <h1 className="dashboard-title">Modify Portfolio Weights</h1>
+            <button className="add-row-btn" onClick={handleAddRow}>Add New Stock</button>
+          </div>
         </div>
 
-        {/* Modify Table Section */}
         <div className="modify-table-container">
           <table className="modify-table">
             <thead>
               <tr className="modify-table-header-row">
-                <th className="modify-table-header">Stock Name</th>
-                <th className="modify-table-header">Analyst Weight (%)</th>
-                <th className="modify-table-header">Number of Stocks</th>
-                <th className="modify-table-header">Index Weight (%)</th>
-                <th className="modify-table-header">Analyst Stance</th>
-                <th className="modify-table-header">Notes</th>
-                <th className="modify-table-header">Action</th>
+                <th>Stock Name</th>
+                <th>Analyst Weight (%)</th>
+                <th>Number of Stocks</th>
+                <th>Index Weight (%)</th>
+                <th>Analyst Stance</th>
+                <th>Notes</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {portfolioWeights.map((row, index) => (
-                <tr className="modify-table-row" key={index}>
-                  <td className="modify-table-cell">{row.stock}</td>
-                  <td className="modify-table-cell">
+              {portfolio.map((row, index) => (
+                <tr key={index}>
+                  <td>
+                    <input
+                      type="text"
+                      value={row.stock}
+                      onChange={(e) => {
+                        const updated = [...portfolio];
+                        updated[index].stock = e.target.value;
+                        setPortfolio(updated);
+                      }}
+                      className="modify-input"
+                    />
+                  </td>
+                  <td>
                     <input
                       type="number"
-                      value={weights[index]}
+                      value={row.analystWeight}
                       onChange={(e) => handleWeightChange(index, e.target.value)}
                       className="modify-input"
                     />
                   </td>
-                  <td className="modify-table-cell">
+                  <td>
                     <input
                       type="number"
-                      defaultValue={row.shares}
+                      value={row.shares}
+                      onChange={(e) => handleSharesChange(index, e.target.value)}
                       className="modify-input"
                     />
                   </td>
-                  <td className="modify-table-cell">{row.indexWeight}</td>
-                  <td className="modify-table-cell">{row.stance}</td>
-                  <td className="modify-table-cell">{row.notes}</td>
-                  <td className="modify-table-cell">
+                  <td>
+                   {row.indexWeight}                      
+                  </td>
+                  <td>{row.stance}</td>
+                  <td>
+                    <button
+                      className="note-btn"
+                      onClick={() =>
+                        setNoteModal({ visible: true, index, value: notesData[index] })
+                      }
+                      title={notesData[index] || 'No note'}
+                    >
+                      Add Note
+                    </button>
+                  </td>
+                  <td>
                     <button className="modify-btn">Update</button>
                   </td>
                 </tr>
@@ -138,14 +240,12 @@ const Modify = () => {
             </tbody>
           </table>
 
-          {/* Action Buttons */}
           <div className="button-container">
             <button className="done-btn" onClick={handleDone}>Done</button>
             <button className="save-btn" onClick={handleSave}>Save</button>
           </div>
         </div>
 
-        {/* Modal */}
         {showModal && (
           <div className="modal-overlay">
             <div className="modal-content">
@@ -166,6 +266,44 @@ const Modify = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {noteModal.visible && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h2>Note for {portfolio[noteModal.index].stock}</h2>
+              <p>Previous Note:</p>
+              <div className="prev-note-box">{noteModal.value || "No previous note"}</div>
+              <textarea
+                className="note-textarea"
+                value={noteModal.value}
+                onChange={(e) =>
+                  setNoteModal({ ...noteModal, value: e.target.value })
+                }
+              />
+              <div className="modal-actions">
+                <button
+                  className="modal-btn yes"
+                  onClick={() => {
+                    const updatedNotes = [...notesData];
+                    updatedNotes[noteModal.index] = noteModal.value;
+                    setNotesData(updatedNotes);
+                    setNoteModal({ visible: false, index: null, value: "" });
+                  }}
+                >
+                  Save Note
+                </button>
+                <button
+                  className="modal-btn no"
+                  onClick={() =>
+                    setNoteModal({ visible: false, index: null, value: "" })
+                  }
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}

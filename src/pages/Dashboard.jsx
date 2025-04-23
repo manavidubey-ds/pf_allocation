@@ -1,10 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import './Dashboard.css';
 import userIcon from '../assets/usericon.png';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [stocks, setStocks] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/stocks')
+      .then(res => {
+        console.log('Fetched Stocks:', res.data);
+        setStocks(res.data); // ensure the backend returns an array
+      })
+      .catch(err => {
+        console.error('Error fetching stocks:', err);
+      });
+  }, []);
 
   const navPages = [
     { name: 'Dashboard', route: '/dashboard' },
@@ -15,14 +28,9 @@ const Dashboard = () => {
     { name: 'Index Weights', route: '/weights' }
   ];
 
-  const dummyTableData = [
-    { stock: 'SBIN', analyst: '30', index: '25', stance: 'OW', price: '270', quantity: '100', gain: '+6%' },
-    { stock: 'HDFC', analyst: '20', index: '22', stance: 'UW', price: '1724', quantity: '100', gain: '-7%' },
-    { stock: 'HCL', analyst: '10', index: '15', stance: 'OW', price: '1000', quantity: '100', gain: '-5%' },
-    { stock: 'KOTAKBANK', analyst: '30', index: '20', stance: 'UW', price: '1820', quantity: '100', gain: '+2%' },
-    { stock: 'CANBK', analyst: '10', index: '18', stance: 'OW', price: '500', quantity: '100', gain: '-3%' },
-    { stock: '', analyst: '100', index: '100', stance: '', price: '', quantity: '', gain: '' },
-  ];
+  // Calculate totals
+  const totalAnalystWeight = stocks.reduce((sum, item) => sum + parseFloat(item.analyst_weight || 0), 0).toFixed(2);
+  const totalIndexWeight = stocks.reduce((sum, item) => sum + parseFloat(item.index_weight || 0), 0).toFixed(2);
 
   return (
     <div className="dashboard-wrapper">
@@ -48,8 +56,8 @@ const Dashboard = () => {
             <div className="dashboard-user">
               <img src={userIcon} alt="User Icon" className="dashboard-user-icon" />
               <div className="user-text">
-                <div className="user-name">John Doe</div>
-                <div className="user-email">john@example.com</div>
+                <div className="user-name"> ABC</div>
+                <div className="user-email">abc@gmail.com</div>
               </div>
             </div>
           </div>
@@ -105,19 +113,26 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {dummyTableData.map((item, idx) => (
+              {Array.isArray(stocks) && stocks.map((item, idx) => (
                 <tr key={idx}>
-                  <td>{item.stock}</td>
-                  <td>{item.analyst}</td>
-                  <td>{item.index}</td>
+                  <td>{item.stock_name}</td>
+                  <td>{item.analyst_weight}</td>
+                  <td>{item.index_weight}</td>
                   <td>{item.stance}</td>
-                  <td>{item.price}</td>
-                  <td>{item.quantity}</td>
-                  <td className={item.gain.startsWith('+') ? 'text-green' : 'text-red'}>
+                  <td>{item.last_closing_price}</td>
+                  <td>{item.number_of_shares}</td>
+                  <td className={item.gain?.startsWith('+') ? 'text-green' : 'text-red'}>
                     {item.gain}
                   </td>
                 </tr>
               ))}
+              {/* New row for totals */}
+              <tr>
+                <td colSpan="1">Total</td>
+                <td>{totalAnalystWeight}</td>
+                <td>{totalIndexWeight}</td>
+                <td colSpan="4"></td> {/* Span the remaining columns */}
+              </tr>
             </tbody>
           </table>
         </div>
