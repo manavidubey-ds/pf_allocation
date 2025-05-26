@@ -1,0 +1,74 @@
+tables:
+
+index{
+    date,
+    security_name,
+    weight
+}
+
+security{
+    ISIN,
+    name,
+    date
+}
+
+##    current_price,
+
+analyst_portfolio{
+    aID,
+    date,
+    security_name,
+    sector_name
+}
+
+portfolio_details{
+    aID,
+    total_investment_amount,
+    date,
+}
+
+modify_update_portfolio{
+    aID,
+    date,
+    security_name,
+    current_price,
+    index_weight,
+    analyst_weight,
+    analyst_stance, (formulae)
+    index_price, (index_weight/total_stock_index_weight * total_investment_amount)
+    index_no_shares, (index_price/current_price),
+    index_price_as_per_share_units, (index_no_shares*current_price)
+    analyst_price, (analyst_weight/total_stock_index_weight * total_investment_amount)
+    analyst_no_shares, (analyst_price/current_price)
+    analyst_price_as_per_share_unit, (analyst_no_shares * current_price)
+}
+
+
+modify_list_update_history{
+    date,
+    aID,
+    security_names,
+    sum(index_price_as_per_share_units),
+    index_gain, (sum(index_price_as_per_share_units)-(last_updated_total_sum)) "last updated total sum value get piced from this table only"
+    analyst_gain, (sum(analyst_price_as_per_share_unit) - (last_updated_total_sum))
+    index_gain_percentage,
+    analyst_gain_percentage,
+    analyst_performance_difference,
+}
+
+dashboard{
+    aID,
+    date,
+    security_name,
+    current_price,
+    index_weight,
+    analyst_weight,
+    analyst_stance, (formulae)
+    index_price, (index_weight/total_stock_index_weight * total_investment_amount)
+    index_no_shares, (index_price/current_price),
+    index_price_as_per_share_units, (index_no_shares*current_price)
+    analyst_price, (analyst_weight/total_stock_index_weight * total_investment_amount)
+    analyst_no_shares, (analyst_price/current_price)
+    analyst_price_as_per_share_unit, (analyst_no_shares * current_price)
+
+}

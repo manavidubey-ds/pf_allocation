@@ -50,7 +50,7 @@ router.post('/upsert', (req, res) => {
 router.get('/:id', (req, res) => {
   const stockId = req.params.id;
 
-  const query = 'SELECT * FROM stocks WHERE id = ?';
+  const query = 'SELECT * FROM banks WHERE id = ?';
   connection.query(query, [stockId], (err, results) => {
     if (err) {
       console.error('❌ Error fetching stock data:', err);
@@ -69,7 +69,7 @@ router.get('/:id', (req, res) => {
 router.get('/list', (req, res) => {
   const limit = parseInt(req.query.limit) || 10; // You can use a query parameter to limit the number of records (default is 10)
 
-  const query = 'SELECT * FROM stocks LIMIT ?';
+  const query = 'SELECT * FROM banksLIMIT ?';
   connection.query(query, [limit], (err, results) => {
     if (err) {
       console.error('❌ Error fetching stock data:', err);

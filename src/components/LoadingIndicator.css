@@ -1,0 +1,40 @@
+.loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 1); /* Optional overlay */
+    z-index: 9999;
+  }
+  
+  .loading-wrapper {
+    display: flex;
+    align-items: center;
+    font-size: 1.2em;
+    color: #555;
+  }
+  
+  .loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #ccc;
+    border-top-color: #E0EAFB;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 12px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .loading-text {
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0.5px;
+  }
+  
