@@ -17,11 +17,16 @@ const IndexWeights = () => {
 
   const fetchIndexWeights = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/index-weights');
+      const response = await fetch('http://localhost:5002/api/index-weights');
+      if (!response.ok) {
+        throw new Error('Failed to fetch index weights');
+      }
       const data = await response.json();
+      console.log('Received index weights:', data);
       setIndexWeights(data);
     } catch (error) {
       console.error('Error fetching index weights:', error);
+      setUploadStatus(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -103,10 +108,10 @@ const IndexWeights = () => {
               </thead>
               <tbody>
                 {indexWeights.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.stock_name}</td>
-                    <td>{item.index_weight}%</td>
-                    <td>{new Date(item.last_updated).toLocaleDateString()}</td>
+                  <tr key={item.security_name}>
+                    <td>{item.security_name}</td>
+                    <td>{parseFloat(item.index_weight).toFixed(2)}%</td>
+                    <td>{new Date(item.last_updated).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

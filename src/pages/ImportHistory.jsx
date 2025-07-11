@@ -16,7 +16,7 @@ const ImportHistory = () => {
 
   const fetchImportHistory = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/import-history');
+      const response = await fetch('http://localhost:5001/api/import-history');
       const data = await response.json();
       setImportHistory(data);
     } catch (error) {
@@ -39,7 +39,7 @@ const ImportHistory = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const response = await fetch('http://localhost:5000/api/upload-import-history', {
+      const response = await fetch('http://localhost:5001/api/upload-import-history', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -9,6 +9,7 @@ import Modify from './pages/Modify';
 import Portfolio from './pages/Portfolio';
 import ImportHistory from './pages/ImportHistory';
 import IndexWeights from './pages/IndexWeights';
+import CorporateActions from './pages/CorporateActions';
 
 const App = () => {
   return (
@@ -22,6 +23,7 @@ const App = () => {
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/import" element={<ImportHistory />} />
         <Route path="/weights" element={<IndexWeights />} />
+        <Route path="/corporate-actions" element={<CorporateActions />} />
       </Routes>
     </Router>
   );

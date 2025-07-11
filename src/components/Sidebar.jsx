@@ -12,7 +12,8 @@ const Sidebar = () => {
     { name: 'Modify', route: '/modify' },
     { name: 'Portfolio', route: '/portfolio' },
     { name: 'Import History', route: '/import' },
-    { name: 'Index Weights', route: '/weights' }
+    { name: 'Index Weights', route: '/weights' },
+    { name: 'Corporate Actions', route: '/corporate-actions' }
   ];
 
   return (

@@ -174,13 +174,13 @@ app.put('/api/stocks/:id', (req, res) => {
   }
 
   const query = 'UPDATE portfolio_table SET is_active = ? WHERE id = ?';
-  executeQuery(query, [is_active, portfolioItemId])
+  executeQuery(query, [is_active ? 1 : 0, portfolioItemId])
     .then(result => {
       console.log("Result of update:", result);
       if (result.affectedRows === 0) {
         res.status(404).json({ message: 'Portfolio item not found' });
       } else {
-        res.json({ message: 'Stock updated successfully', result });
+        res.json({ message: 'Stock status updated successfully', result });
       }
     })
     .catch(err => {

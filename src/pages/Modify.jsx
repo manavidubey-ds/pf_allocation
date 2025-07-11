@@ -33,7 +33,8 @@ const Modify = () => {
     { name: 'Modify', route: '/modify' },
     { name: 'Portfolio', route: '/portfolio' },
     { name: 'Import History', route: '/import' },
-    { name: 'Index Weights', route: '/weights' }
+    { name: 'Index Weights', route: '/weights' },
+    { name: 'Corporate Actions', route: '/corporate-actions' }
   ];
 
   const calculateStance = (analystWeight, indexWeight) => {
@@ -52,9 +53,9 @@ const Modify = () => {
 
       // Fetch fresh data directly
       const [portfolioRes, pricesRes, modifyHistoryRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/portfolio?fundAmount=${fundAmount}`),
-        fetch('http://localhost:5000/api/portfolio-prices'),
-        fetch('http://localhost:5000/api/latest-modify-data')
+        fetch(`http://localhost:5002/api/portfolio?fundAmount=${fundAmount}`),
+        fetch('http://localhost:5002/api/portfolio-prices'),
+        fetch('http://localhost:5002/api/latest-modify-data')
       ]);
 
       if (!portfolioRes.ok) throw new Error('Failed to fetch portfolio');
@@ -70,52 +71,56 @@ const Modify = () => {
       const activeStocks = [];
       let totalIndexWeight = 0;
 
-      portfolioData.portfolio.forEach(stock => {
+      // Process portfolio data
+      portfolioData.forEach(stock => {
         if (stock.is_active) {
           totalIndexWeight += parseFloat(stock.index_weight) || 0;
         }
       });
 
+      // Process prices data
       pricesData.forEach(item => {
-        pricesObj[item.stock_name] = item;
+        pricesObj[item.security_name] = item;
       });
 
+      // Process modify history data
       modifyHistoryData.forEach(item => {
         if (!latestModifyData[item.security_name] || 
-            new Date(item.created_at) > new Date(latestModifyData[item.security_name].created_at)) {
+            new Date(item.date_added) > new Date(latestModifyData[item.security_name].date_added)) {
           latestModifyData[item.security_name] = item;
         }
       });
 
-      portfolioData.portfolio
-          .filter(stock => stock.is_active)
+      // Process active stocks
+      portfolioData
+        .filter(stock => stock.is_active)
         .forEach(stock => {
-            const indexWeight = parseFloat(stock.index_weight) || 0;
-            const indexPrice = totalIndexWeight > 0 ? (indexWeight / totalIndexWeight) * fundAmount : 0;
-            const currentPrice = pricesObj[stock.security_name]?.current_price || 0;
-            const indexShares = currentPrice > 0 ? Math.floor(indexPrice / currentPrice) : 0;
-            const latestData = latestModifyData[stock.security_name];
+          const indexWeight = parseFloat(stock.index_weight) || 0;
+          const indexPrice = totalIndexWeight > 0 ? (indexWeight / totalIndexWeight) * fundAmount : 0;
+          const currentPrice = pricesObj[stock.security_name]?.current_price || 0;
+          const indexShares = currentPrice > 0 ? Math.floor(indexPrice / currentPrice) : 0;
+          const latestData = latestModifyData[stock.security_name];
 
           const analystShares = latestData?.analyst_shares || 0;
           const analystPriceUpdated = currentPrice * analystShares;
 
           activeStocks.push({
-              ...stock,
-              analyst_weight: latestData?.analyst_weight || 0,
-              shares: latestData?.analyst_shares || 0,
-              index_price: indexPrice,
-              index_shares: indexShares,
-              last_saved_analyst_weight: latestData?.analyst_weight || 0,
-              last_saved_analyst_shares: latestData?.analyst_shares || 0,
-              stance: calculateStance(
-                latestData?.analyst_weight || 0, 
-                stock.index_weight
-              ),
+            ...stock,
+            analyst_weight: latestData?.analyst_weight || 0,
+            shares: latestData?.analyst_shares || 0,
+            index_price: indexPrice,
+            index_shares: indexShares,
+            last_saved_analyst_weight: latestData?.analyst_weight || 0,
+            last_saved_analyst_shares: latestData?.analyst_shares || 0,
+            stance: calculateStance(
+              latestData?.analyst_weight || 0, 
+              stock.index_weight
+            ),
             notes: latestData?.notes || ".....",
             analyst_price: analystPriceUpdated,
             analyst_price_per_share: analystPriceUpdated
           });
-          });
+        });
 
       setStockPrices(pricesObj);
       setPortfolioStocks(activeStocks);
@@ -133,7 +138,7 @@ const Modify = () => {
   const checkPortfolioChanges = useCallback(async () => {
     try {
       const fundAmount = localStorage.getItem('fundAmount') || 100000000000;
-      const response = await fetch(`http://localhost:5000/api/portfolio?fundAmount=${fundAmount}`);
+      const response = await fetch(`http://localhost:5002/api/portfolio?fundAmount=${fundAmount}`);
       
       if (!response.ok) throw new Error('Failed to check portfolio changes');
       
@@ -225,7 +230,7 @@ const Modify = () => {
 
   const handleSaveChanges = async (stock) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/stocks/${stock.portfolio_item_id}`, {
+      const response = await fetch(`http://localhost:5002/api/stocks/${stock.portfolio_item_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -400,7 +405,7 @@ const Modify = () => {
 
   const handleSaveWeights = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/modify-stocks', {
+      const response = await fetch('http://localhost:5002/api/modify-stocks', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -451,7 +456,7 @@ const Modify = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/save-modify-data', {
+      const response = await fetch('http://localhost:5002/api/save-modify-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

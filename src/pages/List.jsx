@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
 import userIcon from '../assets/usericon.png';
 import { Link } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 
 function List() {
   const [historyData, setHistoryData] = useState([]);
@@ -14,7 +15,8 @@ function List() {
     { name: 'Modify', route: '/modify' },
     { name: 'Portfolio', route: '/portfolio' },
     { name: 'Import History', route: '/import' },
-    { name: 'Index Weights', route: '/weights' }
+    { name: 'Index Weights', route: '/weights' },
+    { name: 'Corporate Actions', route: '/corporate-actions' }
   ];
 
   useEffect(() => {
@@ -23,7 +25,7 @@ function List() {
 
   const fetchHistoryData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/modify-history-list');
+      const response = await fetch('http://localhost:5002/api/modify-history-list');
       if (!response.ok) {
         throw new Error('Failed to fetch history data');
       }
@@ -36,7 +38,7 @@ function List() {
 
   const handleViewDetails = async (timestamp) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/modify-history-details/${timestamp}`);
+      const response = await fetch(`http://localhost:5002/api/modify-history-details/${timestamp}`);
       if (!response.ok) {
         throw new Error('Failed to fetch history details');
       }
@@ -117,84 +119,44 @@ function List() {
 
   return (
     <div className="dashboard-wrapper">
-      <aside className="sidebar">
-      <h2 className="sidebar-title">Model Portfolio Tracker</h2>
-      
-        <div className="dashboard-user-info sidebar-user-info">
-          <div className="dashboard-user">
-            <img src={userIcon} alt="User Icon" className="dashboard-user-icon" />
-            <div className="user-text">
-            <div className="user-name">DZ</div>
-        <div className="user-email">help@dataeaze.com</div>
-        <div className="user-email">Power Sector Analyst</div>
-            </div>
-          </div>
-        </div>
-      
-        <nav className="sidebar-nav">
-          {navPages.map((page) => (
-            <Link
-              key={page.name}
-              to={page.route}
-              className={location.pathname === page.route ? 'active' : ''}
-            >
-              {page.name}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      
-      
-
+      <Sidebar />
       <main className="dashboard-container">
-        {/* <div className="dashboard-topbar">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="dashboard-search"
-          />
-          <div className="dashboard-user">
-            <img src={userIcon} alt="User Icon" className="dashboard-user-icon" />
-            <div className="user-text">
-              <div className="user-name">Manav</div>
-              <div className="user-email">manav@gmail.com</div>
-            </div>
-          </div>
-        </div> */}
+        <div className="dashboard-header">
+          <h1>Modify History</h1>
+        </div>
 
-        <div className="list-section">
-          <h2 className="dashboard-title">List</h2>
-          <div className="list-table-container">
-            <table className="list-table">
-              <thead>
-                <tr>
-                  <th>Sr No.</th>
-                  <th>Date & Time</th>
-                  <th>Modified Stocks</th>
-                  <th>Notes</th>
-                  <th>Actions</th>            
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Securities</th>
+                <th>Total Value</th>
+                <th>Number of Securities</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyData.map((item, index) => (
+                <tr key={index}>
+                  <td>{formatDateTime(item.timestamp)}</td>
+                  <td>{item.securities}</td>
+                  <td>₹{formatNumber(item.total_value)}</td>
+                  <td>{item.num_securities}</td>
+                  <td>{item.notes || '-'}</td>
+                  <td>
+                    <button 
+                      className="view-details-btn"
+                      onClick={() => handleViewDetails(item.timestamp)}
+                    >
+                      View Details
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {historyData.map((item, index) => (
-                  <tr key={item.id}>
-                    <td>{index + 1}</td>
-                    <td>{formatDateTime(item.timestamp)}</td>
-                    <td>{item.stock_names}</td>
-                    <td>{item.notes || '-'}</td>
-                    <td>
-                      <button 
-                        className="view-btn"
-                        onClick={() => handleViewDetails(item.timestamp)}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {showModal && selectedHistory && (
@@ -205,7 +167,7 @@ function List() {
                 <table className="history-detail-table">
                   <thead>
                     <tr>
-                      <th>Stock</th>
+                      <th>Security Name</th>
                       <th>Sector</th>
                       <th>Current Price</th>
                       <th>Index Weight</th>
@@ -223,18 +185,17 @@ function List() {
                       <tr key={index}>
                         <td>{detail.security_name}</td>
                         <td>{detail.sector}</td>
-                        <td>{formatCurrency(detail.current_price)}</td>
+                        <td>₹{formatNumber(detail.current_price)}</td>
                         <td>{formatNumber(detail.index_weight)}%</td>
                         <td>{formatNumber(detail.index_shares)}</td>
-                        <td>{formatCurrency(detail.index_price)}</td>
+                        <td>₹{formatNumber(detail.index_price)}</td>
                         <td>{formatNumber(detail.analyst_weight)}%</td>
                         <td>{formatNumber(detail.analyst_shares)}</td>
-                        <td>{formatCurrency(detail.analyst_price)}</td>
+                        <td>₹{formatNumber(detail.analyst_price)}</td>
                         <td>{detail.analyst_stance}</td>
                         <td>{detail.notes || '-'}</td>
                       </tr>
                     ))}
-                    {/* Totals row */}
                     <tr className="total-row">
                       <td colSpan="3"><strong>Total</strong></td>
                       <td>

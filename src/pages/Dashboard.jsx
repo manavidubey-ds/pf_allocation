@@ -3,8 +3,9 @@ import './Dashboard.css';
 import userIcon from '../assets/usericon.png';
 import { Link, useLocation } from 'react-router-dom';
 import LoadingIndicator from '../components/LoadingIndicator';
+import Sidebar from '../components/Sidebar';
 
-const CACHE_DURATION = 1 * 60 * 1000;
+const CACHE_DURATION = 10 * 1000;
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,9 +28,15 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [outperformance, setOutperformance] = useState(0);
 
+  // Clear cache and refresh data when component mounts or when data might have changed
   useEffect(() => {
+    // Clear any cached data to ensure fresh data is fetched
+    const fundAmount = localStorage.getItem('fundAmount') || 100000000000;
+    sessionStorage.removeItem(`portfolio_${fundAmount}`);
+    sessionStorage.removeItem('prices');
+    
+    // Force fresh data fetch
     fetchDashboardData();
   }, []);
 
@@ -47,13 +54,6 @@ const Dashboard = () => {
 
     setTotalIndexPriceNew(total);
   }, [dashboardStocks, stockPrices]);
-
-  useEffect(() => {
-    const analystValue = calculatePortfolioValue();
-    const indexValue = totalIndexPriceNew;
-    const outperformanceValue = ((analystValue - indexValue) / indexValue) * 100;
-    setOutperformance(outperformanceValue);
-  }, [dashboardStocks, stockPrices, totalIndexPriceNew]);
 
   useEffect(() => {
     const newTotals = {
@@ -108,53 +108,38 @@ const getGreeting = () => {
       };
 
       // Fetch all data in parallel with caching
-      const [portfolioData, pricesData, modifyData] = await Promise.all([
-        fetchWithCache(`http://localhost:5000/api/portfolio?fundAmount=${fundAmount}`, `portfolio_${fundAmount}`),
-        fetchWithCache('http://localhost:5000/api/portfolio-prices', 'prices'),
-        fetchWithCache('http://localhost:5000/api/latest-modify-data', 'modify_data')
+      const [portfolioData, pricesData] = await Promise.all([
+        fetchWithCache(`http://localhost:5002/api/portfolio?fundAmount=${fundAmount}`, `portfolio_${fundAmount}`),
+        fetchWithCache('http://localhost:5002/api/portfolio-prices', 'prices')
       ]);
 
-      const pricesObj = {};
-      pricesData.forEach(item => {
-        if (item.current_price !== undefined && item.current_price !== null) {
-          pricesObj[item.stock_name] = {
-            current_price: parseFloat(item.current_price)
-          };
-        }
-      });
-
-      const historicalPrices = {};
-      modifyData.forEach(item => {
-        historicalPrices[item.security_name] = {
-          price: parseFloat(item.current_price) || null,
-          analyst_shares: parseInt(item.analyst_shares) || 0,
-          analyst_weight: parseFloat(item.analyst_weight) || 0,
-          index_shares: parseInt(item.index_shares) || 0
-        };
-      });
-
-      // Filter for active stocks and merge with latest modify data
-      const activeStocks = portfolioData.portfolio.filter(stock => stock.is_active === 1);
-      const mergedStocks = activeStocks.map(stock => {
-        const latestModify = modifyData.find(m => m.security_name === stock.security_name);
-        const historicalPrice = historicalPrices[stock.security_name];
-        const currentPrice = pricesObj[stock.security_name]?.current_price;
-        const indexShares = latestModify?.index_shares || 0;
-        const oldPrice = historicalPrice?.price || currentPrice;
-
+      // Use portfolio data directly since it already contains all the information with current prices
+      const activeStocks = (portfolioData || []).filter(stock => stock.is_active === 1);
+      
+      // Process the stocks to ensure all values are properly parsed
+      const processedStocks = activeStocks.map(stock => {
+        const currentPrice = parseFloat(stock.current_price) || 0;
+        const analystShares = parseInt(stock.analyst_shares) || 0;
+        const indexShares = parseInt(stock.index_shares) || 0;
+        
         return {
           ...stock,
-          analyst_weight: latestModify?.analyst_weight || 0,
-          analyst_shares: latestModify?.analyst_shares || 0,
-          price_at_addition: oldPrice || 0,
+          current_price: currentPrice,
+          index_weight: parseFloat(stock.index_weight) || 0,
+          analyst_weight: parseFloat(stock.analyst_weight) || 0,
           index_shares: indexShares,
-          index_price_old: (oldPrice || 0) * indexShares,
-          index_price_new: (currentPrice || 0) * indexShares,
+          analyst_shares: analystShares,
+          index_price: parseFloat(stock.index_price) || 0,
+          analyst_price: parseFloat(stock.analyst_price) || 0,
+          value: currentPrice * analystShares
         };
       });
 
-      setDashboardStocks(mergedStocks);
-      setStockPrices(pricesObj);
+      console.log('Portfolio data with current prices:', processedStocks);
+      console.log('Sample stock with current price:', processedStocks[0]);
+
+      setDashboardStocks(processedStocks);
+      setStockPrices({}); // Not needed since we're using portfolio data directly
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading dashboard data:', error.message);
@@ -167,19 +152,18 @@ const getGreeting = () => {
   const formatNumberWithCommas = (num) =>
     new Intl.NumberFormat().format(Number(num).toFixed(2));
 
-  const filteredStocks = dashboardStocks.filter(stock =>
-    stock.sector.toLowerCase().includes(selectedSector.toLowerCase()) &&
+  const filteredStocks = (dashboardStocks || []).filter(stock =>
+    (stock.sector?.toLowerCase() || 'Power').includes(selectedSector.toLowerCase()) &&
     stock.security_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const calculatePortfolioValue = () => {
     return filteredStocks.reduce((total, stock) => {
-      const priceInfo = stockPrices[stock.security_name];
-      const currentPrice = priceInfo?.current_price;
+      const currentPrice = stock.current_price || 0;
       const analystShares = stock.analyst_shares || 0;
 
       if (currentPrice && currentPrice !== "N/A" && !isNaN(currentPrice)) {
-        return total + (currentPrice * analystShares); // Corrected formula
+        return total + (currentPrice * analystShares);
       }
       return total;
     }, 0);
@@ -187,7 +171,7 @@ const getGreeting = () => {
 
   // Calculate total index weight updated
   const totalIndexWeightUpdated = filteredStocks.reduce((total, stock) => {
-    const currentPrice = stockPrices[stock.security_name]?.current_price || 0;
+    const currentPrice = stock.current_price || 0;
     const indexShares = stock.index_shares || 0;
     const indexPriceUpdated = currentPrice * indexShares;
     return total + indexPriceUpdated;
@@ -197,15 +181,9 @@ const getGreeting = () => {
   const fundAmount = Number(localStorage.getItem('fundAmount') || 100000000000);
   const gainPercentage = fundAmount > 0 ? ((portfolioValue - fundAmount) / fundAmount) * 100 : 0;
   const indexGainPercentage = fundAmount > 0 ? ((totalIndexWeightUpdated - fundAmount) / fundAmount) * 100 : 0;
-
-  const navPages = [
-    { name: 'Dashboard', route: '/dashboard' },
-    { name: 'List', route: '/list' },
-    { name: 'Modify', route: '/modify' },
-    { name: 'Portfolio', route: '/portfolio' },
-    { name: 'Import History', route: '/import' },
-    { name: 'Index Weights', route: '/weights' },
-  ];
+  
+  // Outperformance = Analyst Gain - Index Gain
+  const outperformance = gainPercentage - indexGainPercentage;
 
   const formatCurrency = (value) => {
     if (value === undefined || value === null || value === "N/A") {
@@ -251,32 +229,7 @@ const getGreeting = () => {
 
   return (
     <div className="dashboard-wrapper">
-      <aside className="sidebar">
-        <h2 className="sidebar-title">Model Portfolio Tracker</h2>
-
-        <div className="dashboard-user-info sidebar-user-info">
-          <div className="dashboard-user">
-            <img src={userIcon} alt="User Icon" className="dashboard-user-icon" />
-            <div className="user-text">
-              <div className="user-name">DZ</div>
-              <div className="user-email">help@dataeaze.com</div>
-              <div className="user-email">Power Sector Analyst</div>
-            </div>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          {navPages.map((page) => (
-            <Link
-              key={page.name}
-              to={page.route}
-              className={location.pathname === page.route ? 'active' : ''}
-            >
-              {page.name}
-            </Link>
-          ))}
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="dashboard-container">
 
@@ -332,6 +285,12 @@ const getGreeting = () => {
                 />
               </div>
             </div>
+            <div className="big-card-row">
+              <div className="big-card-label">Outperformance vs Index</div>
+              <div className={outperformance >= 0 ? 'big-card-value text-green' : 'big-card-value text-red'}>
+                {outperformance.toFixed(2)}%
+              </div>
+            </div>
           </div>
         </div>
 
@@ -350,18 +309,18 @@ const getGreeting = () => {
             </thead>
             <tbody>
               {filteredStocks.map((stock) => {
-                const priceInfo = stockPrices[stock.security_name];
-                const currentPrice = priceInfo?.current_price;
+                const currentPrice = stock.current_price || 0;
                 const indexShares = stock.index_shares || 0;
                 const analystShares = stock.analyst_shares || 0;
-                const indexPriceNew = currentPrice && currentPrice !== "N/A" && !isNaN(currentPrice) ? (currentPrice * indexShares) : 0;
-                const analystValueCurrent = currentPrice && currentPrice !== "N/A" && !isNaN(currentPrice) ? (currentPrice * analystShares) : 0;
-                const indexWeight = parseFloat(stock.index_weight) || 0;
+                const indexPriceNew = currentPrice * indexShares;
+                const analystValueCurrent = currentPrice * analystShares;
+                const indexWeight = stock.index_weight || 0;
+                const analystWeight = stock.analyst_weight || 0;
                 
                 const totalIndexPriceUpdated = filteredStocks.reduce((sum, s) => {
-                  const price = stockPrices[s.security_name]?.current_price;
+                  const price = s.current_price || 0;
                   const shares = s.index_shares || 0;
-                  return sum + (price && price !== "N/A" && !isNaN(price) ? (price * shares) : 0);
+                  return sum + (price * shares);
                 }, 0);
 
                 const updatedIndexWeight = totalIndexPriceUpdated > 0 ? 
@@ -369,13 +328,13 @@ const getGreeting = () => {
 
                 // Calculate total analyst price updated
                 const totalAnalystPriceUpdated = filteredStocks.reduce((sum, s) => {
-                  const price = stockPrices[s.security_name]?.current_price;
+                  const price = s.current_price || 0;
                   const shares = s.analyst_shares || 0;
-                  return sum + (price && price !== "N/A" && !isNaN(price) ? (price * shares) : 0);
+                  return sum + (price * shares);
                 }, 0);
 
                 // Calculate analyst weight using the formula
-                const analystWeight = totalAnalystPriceUpdated > 0 ? 
+                const updatedAnalystWeight = totalAnalystPriceUpdated > 0 ? 
                   ((analystValueCurrent / totalAnalystPriceUpdated) * totals.indexWeight).toFixed(4) : '0.0000';
 
                 return (
@@ -383,8 +342,8 @@ const getGreeting = () => {
                     <td>{stock.security_name}</td>
                     <td>₹{currentPrice ? currentPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : 'N/A'}</td>
                     <td>{updatedIndexWeight.toFixed(2)}%</td>
-                    <td>{analystWeight}%</td>
-                    <td>{calculateStance(stock.analyst_weight, indexWeight)}</td>
+                    <td>{updatedAnalystWeight}%</td>
+                    <td>{calculateStance(analystWeight, indexWeight)}</td>
                     <td>{Math.round(analystShares).toLocaleString('en-IN')}</td>
                     <td>₹{analystValueCurrent.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                   </tr>
@@ -394,14 +353,13 @@ const getGreeting = () => {
                 <td>Total</td>
                 <td></td>
                 <td>{filteredStocks.reduce((sum, stock) => {
-                  const priceInfo = stockPrices[stock.security_name];
-                  const currentPrice = priceInfo?.current_price;
+                  const currentPrice = stock.current_price || 0;
                   const indexShares = stock.index_shares || 0;
-                  const indexPriceNew = currentPrice && currentPrice !== "N/A" && !isNaN(currentPrice) ? (currentPrice * indexShares) : 0;
+                  const indexPriceNew = currentPrice * indexShares;
                   const totalIndexPriceUpdated = filteredStocks.reduce((total, s) => {
-                    const price = stockPrices[s.security_name]?.current_price;
+                    const price = s.current_price || 0;
                     const shares = s.index_shares || 0;
-                    return total + (price && price !== "N/A" && !isNaN(price) ? (price * shares) : 0);
+                    return total + (price * shares);
                   }, 0);
                   const updatedIndexWeight = totalIndexPriceUpdated > 0 ? 
                     (indexPriceNew / totalIndexPriceUpdated) * totals.indexWeight : 0;
@@ -411,10 +369,9 @@ const getGreeting = () => {
                 <td></td>
                 <td></td>
                 <td>₹{formatNumberWithCommas(filteredStocks.reduce((sum, stock) => {
-                  const priceInfo = stockPrices[stock.security_name];
-                  const currentPrice = priceInfo?.current_price;
+                  const currentPrice = stock.current_price || 0;
                   const analystShares = stock.analyst_shares || 0;
-                  return sum + (currentPrice && currentPrice !== "N/A" && !isNaN(currentPrice) ? (currentPrice * analystShares) : 0);
+                  return sum + (currentPrice * analystShares);
                 }, 0))}</td>
               </tr>
             </tbody>

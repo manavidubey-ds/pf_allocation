@@ -20,11 +20,36 @@ def clean_price(price_str):
 def get_stock_price(symbol):
     """Get current price for a symbol from Google Finance"""
     try:
-        # Format the symbol for Google Finance URL
-        formatted_symbol = symbol.replace(' ', '').upper()
-        url = f"https://www.google.com/finance/quote/{formatted_symbol}:NSE"
-        
-        print(f"Fetching data for {formatted_symbol} from {url}", file=sys.stderr)
+        # Map company names to NSE symbols
+        symbol_map = {
+            'Adani Energy Solutions Ltd': 'ADANIENSOL',
+            'Adani Green Energy Ltd': 'ADANIGREEN',
+            'Adani Power Ltd': 'ADANIPOWER',
+            'CESC Ltd': 'CESC',
+            'Jaiprakash Power Ventures Ltd': 'JPPOWER',
+            'JSW Energy Ltd': 'JSWENERGY',
+            'NHPC Ltd': 'NHPC',
+            'NLC India Ltd': 'NLCINDIA',
+            'NTPC Ltd': 'NTPC',
+            'Power Grid Corporation of India Ltd': 'POWERGRID',
+            'SJVN Ltd': 'SJVN',
+            'Tata Power Co Ltd': 'TATAPOWER',
+            'Torrent Power Ltd': 'TORNTPOWER'
+        }
+
+        # Get the NSE symbol
+        nse_symbol = symbol_map.get(symbol)
+        if not nse_symbol:
+            print(f"No NSE symbol mapping found for {symbol}", file=sys.stderr)
+            return {
+                "security_name": symbol,
+                "current_price": 0,
+                "error": "No NSE symbol mapping"
+            }
+
+        # Format the URL for Google Finance
+        url = f"https://www.google.com/finance/quote/{nse_symbol}:NSE"
+        print(f"Fetching data for {symbol} ({nse_symbol}) from {url}", file=sys.stderr)
         
         # Add headers to mimic a browser request
         headers = {
@@ -38,39 +63,35 @@ def get_stock_price(symbol):
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Extract price data - try multiple selectors
-        price_selectors = [
-            ('div', {'class': 'YMlKec fxKbKc'}),
-            ('div', {'class': 'YMlKec'}),
-            ('div', {'class': 'kf1m0'}),
-            ('div', {'class': 'kf1m0', 'data-field': 'regularMarketPrice'})
-        ]
-        
-        current_price = 0
-        for tag, selector in price_selectors:
-            price_element = soup.find(tag, selector)
-            if price_element:
-                current_price = clean_price(price_element.text)
-                if current_price > 0:
-                    print(f"Found current price using selector {selector}: {current_price}", file=sys.stderr)
-                    break
-        
-        if current_price == 0:
-            print(f"No price found for {symbol} using any selector", file=sys.stderr)
+        # Try to find the price in the response text
+        price_match = re.search(r'"regularMarketPrice":([\d.]+)', response.text)
+        if price_match:
+            current_price = float(price_match.group(1))
+            print(f"Found price for {symbol}: {current_price}", file=sys.stderr)
             return {
                 "security_name": symbol,
-                "current_price": 0,
-                "error": "No price found"
+                "current_price": round(current_price, 2)
             }
-            
-        print(f"Found current price: {current_price}", file=sys.stderr)
         
+        # If regex match fails, try BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        price_element = soup.find('div', {'class': 'YMlKec fxKbKc'})
+        if price_element:
+            current_price = clean_price(price_element.text)
+            if current_price > 0:
+                print(f"Found price using BeautifulSoup for {symbol}: {current_price}", file=sys.stderr)
+                return {
+                    "security_name": symbol,
+                    "current_price": round(current_price, 2)
+                }
+        
+        print(f"No price found for {symbol}", file=sys.stderr)
         return {
             "security_name": symbol,
-            "current_price": round(current_price, 2)
+            "current_price": 0,
+            "error": "No price found"
         }
+            
     except requests.exceptions.RequestException as e:
         print(f"Network error fetching {symbol}: {str(e)}", file=sys.stderr)
         return {

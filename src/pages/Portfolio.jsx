@@ -13,6 +13,7 @@ const Portfolio = () => {
     { name: 'Portfolio', route: '/portfolio' },
     { name: 'Import History', route: '/import' },
     { name: 'Index Weights', route: '/weights' },
+    { name: 'Corporate Actions', route: '/corporate-actions' }
   ];
 
   const [portfolioStocks, setPortfolioStocks] = useState([]);
@@ -33,15 +34,17 @@ const Portfolio = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const fetchPortfolioData = async () => {
     try {
-      const portfolioResponse = await fetch('http://localhost:5000/api/portfolio');
+      const portfolioResponse = await fetch('http://localhost:5002/api/portfolio');
       if (!portfolioResponse.ok) {
         throw new Error('Failed to fetch portfolio');
       }
       const portfolioData = await portfolioResponse.json();
-      setPortfolioStocks(portfolioData.portfolio || []);
+      console.log('Portfolio data received:', portfolioData);
+      setPortfolioStocks(portfolioData);
     } catch (err) {
       setError(err.message);
       console.error('Error loading portfolio data:', err);
@@ -50,7 +53,7 @@ const Portfolio = () => {
 
   const fetchAvailableStocks = async () => {
     try {
-      const availableStocksResponse = await fetch('http://localhost:5000/api/securities');
+      const availableStocksResponse = await fetch('http://localhost:5002/api/securities');
       if (!availableStocksResponse.ok) {
         throw new Error('Failed to fetch available stocks');
       }
@@ -81,7 +84,6 @@ const Portfolio = () => {
     try {
       localStorage.setItem('fundAmount', fundAmount.toString());
       setShowAddFundsModal(false);
-      // Trigger a refresh of the portfolio data
       await fetchPortfolioData();
     } catch (error) {
       console.error('Error saving funds', error);
@@ -109,7 +111,7 @@ const Portfolio = () => {
 
     setIsUpdating(true);
     try {
-      const response = await fetch('http://localhost:5000/api/portfolio', {
+      const response = await fetch('http://localhost:5002/api/portfolio', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,9 +142,17 @@ const Portfolio = () => {
   };
 
   const handleStatusChange = async (stockId, newStatus) => {
+    if (!stockId) {
+      console.error('Invalid stockId:', stockId);
+      setError('Invalid stock ID. Please try again.');
+      return;
+    }
+
+    // Clear any previous errors
+    setError(null);
     setIsUpdating(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/stocks/${stockId}`, {
+      const response = await fetch(`http://localhost:5002/api/stocks/${stockId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -156,11 +166,15 @@ const Portfolio = () => {
 
       setPortfolioStocks(prevStocks =>
         prevStocks.map(stock =>
-          stock.portfolio_item_id === stockId
-            ? { ...stock, is_active: newStatus }
+          stock.id === stockId
+            ? { ...stock, is_active: newStatus ? 1 : 0 }
             : stock
         )
       );
+      
+      // Show success message briefly
+      setSuccessMessage('Status updated successfully!');
+      setTimeout(() => setSuccessMessage(null), 2000);
     } catch (error) {
       console.error('Error updating stock status:', error);
       setError('Failed to update stock status. Please try again.');
@@ -224,6 +238,32 @@ const Portfolio = () => {
             </div>
           </div>
 
+          {successMessage && (
+            <div className="success-message" style={{
+              backgroundColor: '#d4edda',
+              color: '#155724',
+              padding: '10px 15px',
+              borderRadius: '6px',
+              marginBottom: '15px',
+              border: '1px solid #c3e6cb'
+            }}>
+              {successMessage}
+            </div>
+          )}
+
+          {error && (
+            <div className="error-message" style={{
+              backgroundColor: '#f8d7da',
+              color: '#721c24',
+              padding: '10px 15px',
+              borderRadius: '6px',
+              marginBottom: '15px',
+              border: '1px solid #f5c6cb'
+            }}>
+              {error}
+            </div>
+          )}
+
           <div className="dashboard-table-container">
             <table className="dashboard-table">
               <thead>
@@ -231,143 +271,104 @@ const Portfolio = () => {
                   <th>Company</th>
                   <th>Sector</th>
                   <th>Status</th>
-                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
-                {portfolioStocks && portfolioStocks.map((stock) => (
-                  <tr key={stock.portfolio_item_id}>
+                {portfolioStocks && portfolioStocks.map((stock, index) => (
+                  <tr key={stock.id || `stock-${index}`}>
                     <td>{stock.security_name}</td>
                     <td>{stock.sector}</td>
                     <td>
                       <label className="status-toggle">
                         <input
                           type="checkbox"
-                          checked={stock.is_active}
-                          onChange={(e) => handleStatusChange(stock.portfolio_item_id, e.target.checked)}
+                          checked={stock.is_active === 1}
+                          onChange={(e) => handleStatusChange(stock.id, e.target.checked)}
                           disabled={isUpdating}
                         />
-                        <span className={`status-indicator ${stock.is_active ? 'active' : 'inactive'}`}>
-                          {stock.is_active ? 'Active' : 'Inactive'}
+                        <span className={`status-indicator ${stock.is_active === 1 ? 'active' : 'inactive'}`}>
+                          {stock.is_active === 1 ? 'Active' : 'Inactive'}
                         </span>
                       </label>
                     </td>
-                    <td>{stock.notes}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      </main>
 
-      {showAddFundsModal && (
-        <div className="modal-overlay" onClick={() => setShowAddFundsModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Funds</h3>
-            <div className="form-group">
-              <label className="form-label">
-                <span className="label-text">Amount (₹)</span>
+        {showAddFundsModal && (
+          <div className="modal-overlay" onClick={() => setShowAddFundsModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h2>Add Funds</h2>
+              <div className="form-group">
+                <label>Fund Amount (₹)</label>
                 <input
                   type="number"
-                  className="form-input"
                   value={fundAmount}
                   onChange={(e) => setFundAmount(Number(e.target.value))}
-                  placeholder="Enter amount"
-                  disabled={isUpdating}
+                  placeholder="Enter fund amount"
                 />
-              </label>
-            </div>
-            <div className="modal-actions">
-              <button 
-                className="modal-btn primary" 
-                onClick={handleFundSave}
-                disabled={isUpdating}
-              >
-                {isUpdating ? 'Saving...' : 'Save'}
-              </button>
-              <button 
-                className="modal-btn secondary" 
-                onClick={() => setShowAddFundsModal(false)}
-                disabled={isUpdating}
-              >
-                Cancel
-              </button>
+              </div>
+              <div className="modal-buttons">
+                <button onClick={handleFundSave} className="save-btn">Save</button>
+                <button onClick={() => setShowAddFundsModal(false)} className="cancel-btn">Cancel</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showAddStockModal && (
-        <div className="modal-overlay" onClick={() => setShowAddStockModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Add New Stock</h3>
-            <div className="form-group">
-              <label className="form-label">
-                <span className="label-text">Sector</span>
+        {showAddStockModal && (
+          <div className="modal-overlay" onClick={() => setShowAddStockModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h2>Add Stock</h2>
+              <div className="form-group">
+                <label>Stock</label>
                 <select
-                  className="form-select"
-                  value={newStock.sector}
-                  onChange={(e) => setNewStock({ ...newStock, sector: e.target.value })}
-                  disabled={isUpdating}
-                >
-                  <option value="">Select Sector</option>
-                  <option value="Power">Power</option>
-                  <option value="Banks">Banks</option>
-                  <option value="IT">IT</option>
-                </select>
-              </label>
-            </div>
-            <div className="form-group">
-              <label className="form-label">
-                <span className="label-text">Stock Name</span>
-                <select
-                  className="form-select"
                   value={newStock.stock_id}
-                  onChange={(e) => setNewStock({ ...newStock, stock_id: e.target.value })}
-                  disabled={isUpdating}
+                  onChange={(e) => {
+                    const selected = availableStocks.find(stock => stock.id === parseInt(e.target.value, 10));
+                    setNewStock({
+                      ...newStock,
+                      stock_id: e.target.value,
+                      sector: selected ? selected.sector : ''
+                    });
+                  }}
                 >
-                  <option value="">Select Stock</option>
-                  {availableStocks.map((stock) => (
+                  <option value="">Select a stock</option>
+                  {availableStocks.map(stock => (
                     <option key={stock.id} value={stock.id}>
                       {stock.security_name}
                     </option>
                   ))}
                 </select>
-              </label>
-            </div>
-            <div className="form-group">
-              <label className="form-label">
-                <span className="label-text">Notes</span>
+              </div>
+              <div className="form-group">
+                <label>Sector</label>
                 <input
                   type="text"
-                  className="form-input"
+                  value={newStock.sector}
+                  readOnly
+                  placeholder="Sector will be auto-filled"
+                />
+              </div>
+              <div className="form-group">
+                <label>Notes</label>
+                <textarea
                   value={newStock.notes}
                   onChange={(e) => setNewStock({ ...newStock, notes: e.target.value })}
-                  placeholder="Enter notes"
-                  disabled={isUpdating}
+                  placeholder="Enter any notes"
                 />
-              </label>
-            </div>
-            <div className="modal-actions">
-              <button 
-                className="modal-btn primary" 
-                onClick={handleAddStock}
-                disabled={isUpdating}
-              >
-                {isUpdating ? 'Adding...' : 'Save'}
-              </button>
-              <button 
-                className="modal-btn secondary" 
-                onClick={() => setShowAddStockModal(false)}
-                disabled={isUpdating}
-              >
-                Cancel
-              </button>
+              </div>
+              <div className="modal-buttons">
+                <button onClick={handleAddStock} className="save-btn">Add</button>
+                <button onClick={() => setShowAddStockModal(false)} className="cancel-btn">Cancel</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 };
